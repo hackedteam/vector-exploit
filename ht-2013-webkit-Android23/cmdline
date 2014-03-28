@@ -1,0 +1,1 @@
+adb shell am start -n com.android.browser/.BrowserActivity http://192.168.69.229/news/3466125380/page.cfm

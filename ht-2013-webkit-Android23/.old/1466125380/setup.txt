@@ -1,0 +1,7 @@
+status:finished 
+requests:0      
+ip:192.168.169.130
+so:1466125380_libfingerprint.so
+landing:landing.html
+redirect:redirect.html
+apk:1466125380_apk
