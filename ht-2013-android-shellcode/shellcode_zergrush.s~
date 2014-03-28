@@ -1,0 +1,12 @@
+.globl _start
+_start:
+	.code 16
+
+	mov	r1, #1
+	mov	r2, #1
+
+
+
+socket_name:
+	.ascii "vold\0"
+	

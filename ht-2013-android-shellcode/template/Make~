@@ -1,0 +1,32 @@
+AR = arm-eabi-ar
+AS = arm-eabi-as
+CC = arm-eabi-gcc
+CXX = arm-eabi-c++
+LD = arm-eabi-ld
+
+NDK_KIT = /opt/android/android-ndk-1.5_r1
+PLATF_KIT = build/platforms/android-1.5
+
+ARM_INC = $(NDK_KIT)/$(PLATF_KIT)/arch-arm/usr/include
+ARM_LIB = $(NDK_KIT)/$(PLATF_KIT)/arch-arm/usr/lib
+
+PLATF_INC = $(NDK_KIT)/$(PLATF_KIT)/common/include
+
+OBJS = hello.o start.o
+EXES = hello
+
+hello: hello.o start.o
+	$(LD) \
+	--entry=_start \
+	--dynamic-linker /system/bin/linker -nostdlib \
+	-rpath /system/lib -rpath $(ARM_LIB) \
+	-L $(ARM_LIB) -lc -o hello hello.o start.o
+
+hello.o: hello.c
+	$(CC) -I $(ARM_INC) -I $(PLATF_INC) -c hello.c
+
+start.o: start.c
+	$(CC) -I $(ARM_INC) -I $(PLATF_INC) -c start.c
+
+clean:
+	rm -f $(OBJS) $(EXES)

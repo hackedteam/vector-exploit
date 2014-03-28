@@ -1,0 +1,132 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <linux/netlink.h>
+#include <sys/un.h>
+
+#include <sys/mount.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/un.h>
+
+#include <dirent.h>
+
+#include <dlfcn.h>
+
+#include <sys/system_properties.h>
+#include "sockets.h"
+#include "android_filesystem_config.h"
+
+
+static struct {
+    pid_t pid;
+    uint32_t got_start, got_end;
+    uint32_t system;
+    char *device;
+    char found;
+  } vold;
+
+
+static void find_vold()
+{
+	char buf[2048], *ptr = NULL;
+	int i = 0, fd;
+	pid_t found = 0;
+	FILE *f = NULL;
+
+	vold.found = 0;
+
+	if ((f = fopen("/proc/net/netlink", "r")) == NULL)
+	  printf("No files!\n");
+
+	for (;!feof(f);) {
+		memset(buf, 0, sizeof(buf));
+		if (!fgets(buf, sizeof(buf), f))
+			break;
+		if ((ptr = strtok(buf, "\t ")) == NULL)
+			break;
+		if ((ptr = strtok(NULL, "\t ")) == NULL)
+			break;
+		if ((ptr = strtok(NULL, "\t ")) == NULL)
+			break;
+		if (!*ptr)
+			break;
+		i = atoi(ptr);
+		if (i <= 1)
+			continue;
+		sprintf(buf, "/proc/%d/cmdline", i);
+		if ((fd = open(buf, O_RDONLY)) < 0)
+			continue;
+		memset(buf, 0, sizeof(buf));
+		read(fd, buf, sizeof(buf) - 1);
+		close(fd);
+		if (strstr(buf, "/system/bin/vold")) {
+			found = i;
+			break;
+		}
+        }
+	fclose(f);
+	if (!found) {
+	  printf("Errreor\n");
+	  //	  return;
+	}
+
+	vold.pid = found;
+	printf("%d vold pid\n",found);
+	vold.found = 1;
+
+        return;
+}
+
+
+int main() {
+  int sock = -1;
+  int n;
+  char buf[1000];
+  struct sockaddr_nl snl;
+  struct iovec iov = {buf, sizeof(buf)};
+  struct msghdr msg = {&snl, sizeof(snl), &iov, 1, NULL, 0, 0};
+
+  FILE f = fopen("test_log", "w");
+
+
+
+  find_vold();
+
+  memset(buf, 0, sizeof(buf));
+  memset(&snl, 0, sizeof(snl));
+  snl.nl_family = AF_NETLINK;
+
+  if ((sock = socket_local_client("vold", ANDROID_SOCKET_NAMESPACE_RESERVED, SOCK_STREAM)) < 0)
+    fprintf(f, "No ZERGRUSH socket!\n");
+  else fprintf(f, "Socket ZERGRUSH OK!\n");
+
+
+  if ((sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT)) < 0)
+    fprintf(f, "Unable to create GINGERBREAK socket!\n");
+
+  snl.nl_pid = vold.pid;
+
+  memset(buf, 0, sizeof(buf));
+  n = snprintf(buf, sizeof(buf), "test");
+  msg.msg_iov->iov_len = n;
+
+  n = sendmsg(sock, &msg, 0);
+
+  if(n <= 0)
+    fprintf(f, "Unable to create GINGERBREAK socket! %d\n" ,n);
+  else
+    fprintf(f, "OK GINGERBREAK socket!\n");
+
+
+  
+
+
+}

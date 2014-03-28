@@ -1,0 +1,9 @@
+#/bin/bash
+rm libs/*
+adb pull /system/lib/libcutils.so lib/
+
+echo "Building exploit generator...."
+
+cp Android.mk-exp_gen Android.mk
+ndk-build
+adb push ../libs/armeabi/exp_gen

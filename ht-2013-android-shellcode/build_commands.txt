@@ -1,0 +1,7 @@
+$ arm-none-linux-gnueabi-gcc -c hello.c
+$ arm-none-linux-gnueabi-gcc -c start.c
+$ arm-none-linux-gnueabi-ld \
+    --entry=_start \
+    --dynamic-linker /system/bin/linker -nostdlib \
+    -rpath /system/lib -rpath ~/tmp/android/system/lib \
+    -L ~/tmp/android/system/lib -lc -o hello hello.o start.o

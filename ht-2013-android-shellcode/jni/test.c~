@@ -1,0 +1,23 @@
+#include <stdio.h>
+#include <unistd.h>
+#include "test_lib.h"
+
+int main() {
+  int h;
+  int i = 3;
+  
+  char* source = "adsf";
+  char dest[7] = "destiny";
+
+  for(;;) {
+    sleep(3);
+    printf("\n");
+    //h = test(5, "into the void", 6);
+    printf("[*] Main %s\n", ya_strcpy(dest, source));
+    
+  }
+
+  return 0;
+}
+
+
