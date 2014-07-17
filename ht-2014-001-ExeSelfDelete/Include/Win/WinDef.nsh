@@ -5,9 +5,7 @@
 !ifndef __WIN_NOINC_WINDEF
 
 
-!ifndef MAX_PATH
-!define MAX_PATH 260
-!endif
+!define /ifndef MAX_PATH 260
 #define NULL 0
 
 
@@ -41,8 +39,8 @@ IntOp ${_outvar} "${_in}" & 0xFFFF
 !define LOWORD "!insertmacro _Win_LOWORD "
 
 !macro _Win_HIWORD _outvar _in
-IntOp ${outvar} "${_in}" >> 16 ;sign extended :(
-${LOWORD} ${_outvar} ${outvar} ;make sure we strip off the upper word
+IntOp ${_outvar} "${_in}" >> 16 ;sign extended :(
+${LOWORD} ${_outvar} ${_outvar} ;make sure we strip off the upper word
 !macroend
 !define HIWORD "!insertmacro _Win_HIWORD "
 

@@ -1,7 +1,7 @@
-;Language: Basque (1069)
-;By Iñaki San Vicente
+ï»¿;Language: Basque (1069)
+;By IÃ±aki San Vicente
 
-!insertmacro LANGFILE "Basque" "Euskera"
+!insertmacro LANGFILE "Basque" = "Euskera" =
 
 !ifdef MUI_WELCOMEPAGE
   ${LangFileString} MUI_TEXT_WELCOME_INFO_TITLE "Ongi etorri $(^NameDA) -ren instalazio programara"
@@ -30,7 +30,7 @@
 !endif
 
 !ifdef MUI_LICENSEPAGE | MUI_UNLICENSEPAGE
-  ${LangFileString} MUI_INNERTEXT_LICENSE_TOP "Sakatu Av Pág hitzarmenaren gainontzeko atalak ikusteko."
+  ${LangFileString} MUI_INNERTEXT_LICENSE_TOP "Sakatu Av PÃ¡g hitzarmenaren gainontzeko atalak ikusteko."
 !endif
 
 !ifdef MUI_COMPONENTSPAGE
@@ -48,7 +48,7 @@
   !ifndef NSIS_CONFIG_COMPONENTPAGE_ALTERNATIVE
     ${LangFileString} MUI_INNERTEXT_COMPONENTS_DESCRIPTION_INFO "Jarri sagua osagai baten gainean dagokion azalpena ikusteko."
   !else
-    ${LangFileString} MUI_INNERTEXT_COMPONENTS_DESCRIPTION_INFO "Jarri sagua osagai baten gainean dagokion azalpena ikusteko."
+    ${LangFileString} MUI_INNERTEXT_COMPONENTS_DESCRIPTION_INFO "Hautatu osagai bat bere azalpena ikusteko."
   !endif
 !endif
 
